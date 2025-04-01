@@ -1,0 +1,165 @@
+# ===============================================================
+# 🏗️ DOCKER COMPOSE — INFRASTRUCTURE HYBRIDE POUR DÉVELOPPEMENT
+#
+# Ce fichier définit une infrastructure complète, simulée localement :
+#
+# 📦 SERVICES DE BASE :
+# - Redpanda   : Streaming temps réel (Kafka-compatible)
+# - MinIO      : Stockage objet compatible S3 (données brutes, fichiers)
+# - ClickHouse : Entrepôt analytique colonne (requêtes rapides)
+# - PostgreSQL : Base de données relationnelle (gestion métier)
+# - OpenLDAP   : Serveur d'authentification centralisée
+#
+# ⚙️ PIPELINE DE DONNÉES :
+# - ticket-producer : Générateur de données simulées (tickets clients), les envoie vers Redpanda
+# - spark-tickets   : Traitement des tickets en temps réel avec PySpark, stockage des résultats dans MinIO
+#
+# Toutes les variables sensibles (identifiants, mots de passe) sont
+# externalisées dans le fichier `.env` à la racine du projet.
+# ===============================================================
+
+
+services:
+
+  # 🟥 REDPANDA — Broker de messages Kafka-compatible
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: redpanda
+
+    # 🚀 Lancement optimisé pour les environnements locaux
+    command:
+      - redpanda
+      - start
+      - --overprovisioned          # désactive certaines contraintes matérielles
+      - --smp
+      - "1"                        # limite à 1 cœur CPU
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --check=false              # désactive les vérifications système
+
+    ports:
+      - "9092:9092"                # Port Kafka pour les clients producteurs/consommateurs
+      - "9644:9644"                # Port HTTP pour l'administration (API REST, métriques)
+
+    volumes:
+      - ./data/redpanda:/var/lib/redpanda  # Persistance locale des données Redpanda
+
+    networks:
+      - hybrid_net                 # Rattachement au réseau Docker local partagé
+
+  # 🟫 MINIO — Serveur S3 local pour stockage d’objets
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+
+    env_file: .env                 # 🔐 Charge les identifiants d’accès depuis le fichier .env
+
+    # 📦 Lancement du serveur avec les ports API et console
+    command: server /data --address ":9000" --console-address ":9001"
+
+    ports:
+      - "9000:9000"                # API S3 (compatible avec AWS S3)
+      - "9001:9001"                # Console web MinIO (interface utilisateur)
+
+    volumes:
+      - ./data/minio:/data        # Dossier local pour stocker les objets
+
+    networks:
+      - hybrid_net
+
+  # 🟨 CLICKHOUSE — Base analytique haute performance en colonnes
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+
+    env_file: .env                # 🔐 Paramètres utilisateurs/MDP dans .env
+
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+
+    ports:
+      - "8123:8123"               # Port HTTP pour requêtes REST/Browser
+      - "9009:9000"               # Port TCP natif (clients Python, DBeaver…)
+
+    volumes:
+      - ./data/clickhouse:/var/lib/clickhouse  # Dossier de persistance des données
+
+    networks:
+      - hybrid_net
+
+  # 🔵 OPENLDAP — Serveur d’annuaire LDAP pour authentification centralisée
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: openldap
+
+    env_file: .env                # Variables : domaine, organisation, mot de passe admin
+
+    ports:
+      - "389:389"                 # Port LDAP non sécurisé
+      - "636:636"                 # Port sécurisé LDAPS
+
+    networks:
+      - hybrid_net
+
+  # 🟢 POSTGRESQL — Base de données relationnelle classique
+  postgres:
+    image: postgres:13
+    container_name: postgres
+
+    env_file: .env                # Utilisation des variables POSTGRES_* dans .env
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}         # Nom de l'utilisateur
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # Mot de passe utilisateur
+      POSTGRES_DB: ${POSTGRES_DB}             # Nom de la base initiale
+
+    ports:
+      - "5432:5432"               # Port PostgreSQL par défaut
+
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data  # Persistance locale des données
+
+    networks:
+      - hybrid_net
+
+  # 🔁 PRODUCTEUR DE TICKETS — Génère les messages vers Redpanda
+  ticket-producer:
+    build:
+      context: .                          # Répertoire de build local
+      dockerfile: Dockerfile.producer     # Dockerfile spécifique au producteur
+    depends_on:
+      - redpanda                          # Démarre après Redpanda
+    networks:
+      - hybrid_net
+      
+  # 📥 CONSUMER DE TICKETS — Pour debug ou monitoring en live
+  ticket-consumer:
+    build:
+      context: .                          # Répertoire de build local
+      dockerfile: Dockerfile.consumer     # Dockerfile pour le consumer Kafka
+    depends_on:
+      - redpanda                          # Démarre après Redpanda
+    networks:
+      - hybrid_net
+
+  # ⚙️ TRAITEMENT SPARK — Pipeline de traitement des tickets
+  spark-tickets:
+    build:
+      context: .                          # Répertoire racine du projet
+      dockerfile: Dockerfile.pyspark      # Dockerfile spécifique pour PySpark
+    depends_on:
+      - redpanda                          # Dépend de Redpanda (source des messages)
+      - minio                             # Et de MinIO (stockage des résultats)
+    networks:
+      - hybrid_net    
+    volumes:
+      - ./outputs:/app/outputs   # 🔁 Ajout ici pour exporter localement
+
+
+# 🌐 RÉSEAU PARTAGÉ ENTRE LES SERVICES
+networks:
+  hybrid_net:
+    driver: bridge                # Réseau Docker interne pour communication privée

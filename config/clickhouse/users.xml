@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<yandex>
+    <users>
+        <default>
+            <!-- 🔐 Authentification désactivée (mot de passe vide pour usage local) -->
+            <password></password>
+
+            <!-- 🌐 Réseaux autorisés à se connecter (toutes les IP, pour Docker local) -->
+            <networks>
+                <ip>::/0</ip> <!-- Autorise toutes les adresses (IPv4 + IPv6) -->
+            </networks>
+
+            <!-- 📊 Profil et quota par défaut -->
+            <profile>default</profile>
+            <quota>default</quota>
+        </default>
+    </users>
+</yandex>

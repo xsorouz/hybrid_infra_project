@@ -1,0 +1,55 @@
+# ==========================================
+# 📂 GITIGNORE — Projet Pipeline Hybride
+# ==========================================
+
+# 🔒 Fichiers sensibles
+.env
+
+# 🐍 Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# 📁 Exports locaux (données générées)
+outputs/
+data/
+logs/
+*.log
+
+# 📦 Fichiers d’archives
+*.zip
+*.tar.gz
+*.rar
+
+# 🐳 Docker
+*.pid
+*.tar
+docker-compose.override.yml
+
+# 📑 Éditeurs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 🪟 Windows
+Thumbs.db
+desktop.ini
+
+# 🖼️ Images générées
+graphique_*.png
+résumé_*.csv
+
+# 💻 Exécutables
+*.exe
+*.bat
+*.sh
+
+# ⚠️ Fichiers spécifiques au projet
+orchestration_guide.md

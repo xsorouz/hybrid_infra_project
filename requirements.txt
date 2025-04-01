@@ -1,0 +1,23 @@
+# kafka-python : client Kafka natif pour Python
+# Permet d'envoyer et de consommer des messages depuis Redpanda (Kafka-compatible)
+kafka-python==2.0.2
+
+# faker : générateur de données fictives réalistes
+# Utilisé pour créer des tickets clients simulés avec ID, date, description, etc.
+faker==24.8.0
+
+# loguru : logger moderne, coloré et configurable
+# Remplace print() et logging avec des niveaux, des formats clairs et des fichiers de logs si besoin
+loguru==0.7.2
+
+# pandas : bibliothèque de manipulation de données tabulaires
+# Sert à charger, concaténer, analyser les exports JSON ou Parquet produits par Spark
+pandas==2.2.1
+
+# matplotlib : génération de graphiques (barres, lignes, histogrammes…)
+# Utilisé pour créer un graphique des tickets par priorité dans le script d’analyse
+matplotlib==3.8.3
+
+# pyarrow : backend pour la lecture/écriture de fichiers Parquet avec Pandas
+# Obligatoire pour lire ou écrire des fichiers Parquet dans pandas.read_parquet()
+pyarrow==15.0.2

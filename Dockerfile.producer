@@ -1,0 +1,15 @@
+# 🐍 Image de base légère avec Python 3.11
+FROM python:3.11-slim
+
+# 📁 Répertoire de travail dans le conteneur
+WORKDIR /app
+
+# 📥 Copier le script de production de données et les dépendances
+COPY src/producer_tickets.py .  
+COPY requirements.txt .  
+
+# 🔧 Installation des packages requis sans les fichiers cache (plus rapide et propre)
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 🚀 Commande de lancement par défaut du conteneur
+CMD ["python", "producer_tickets.py"]

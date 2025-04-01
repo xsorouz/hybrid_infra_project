@@ -1,0 +1,15 @@
+# 🐍 Image de base légère avec Python 3.11 (optimisée pour un conteneur minimal)
+FROM python:3.11-slim
+
+# 📁 Répertoire de travail dans le conteneur
+WORKDIR /app
+
+# 📥 Copier le script consommateur et la liste des dépendances
+COPY src/consumer_tickets_test.py .     
+COPY requirements.txt .             
+
+# 🔧 Installer les packages Python requis
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 🚀 Commande exécutée au lancement du conteneur
+CMD ["python", "consumer_tickets_test.py"]

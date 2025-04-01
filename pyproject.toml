@@ -1,0 +1,20 @@
+[project]
+name = "hybrid-infra-project"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "xsorouz",email = "xavier.rousseau5@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<4"
+dependencies = [
+    "kafka-python (>=2.1.4,<3.0.0)",
+    "minio (>=7.2.15,<8.0.0)",
+    "clickhouse-driver (>=0.2.9,<0.3.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

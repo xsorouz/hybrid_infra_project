@@ -1,0 +1,18 @@
+# 🔧 Image de base : Spark préinstallé avec support Hadoop, fournie par Bitnami
+FROM bitnami/spark:3.5.0
+
+# 👤 Passer en mode root pour installer des dépendances système ou Python
+USER root
+
+# 📂 Définir le répertoire de travail à l’intérieur du conteneur
+WORKDIR /app
+
+# 📥 Copier les scripts PySpark dans le conteneur (batch + streaming)
+COPY src/pyspark_batch_tickets.py .
+COPY src/pyspark_streaming_tickets.py .
+
+# 🐍 Installer kafka-python pour interagir avec Redpanda (Kafka-compatible)
+RUN pip install kafka-python
+
+# 🚀 Point d’entrée : lance le script de streaming par défaut à l’exécution
+CMD ["spark-submit", "pyspark_streaming_tickets.py"]

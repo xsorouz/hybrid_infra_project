@@ -1,165 +1,169 @@
 # ===============================================================
 # 🏗️ DOCKER COMPOSE — INFRASTRUCTURE HYBRIDE POUR DÉVELOPPEMENT
 #
-# Ce fichier définit une infrastructure complète, simulée localement :
+# Ce fichier définit une stack complète pour simuler une architecture distribuée
+# destinée au développement. Il intègre plusieurs services interconnectés via
+# un réseau Docker commun. Les variables sensibles (identifiants, mots de passe, etc.)
+# sont externalisées dans le fichier `.env`.
 #
-# 📦 SERVICES DE BASE :
-# - Redpanda   : Streaming temps réel (Kafka-compatible)
-# - MinIO      : Stockage objet compatible S3 (données brutes, fichiers)
-# - ClickHouse : Entrepôt analytique colonne (requêtes rapides)
-# - PostgreSQL : Base de données relationnelle (gestion métier)
-# - OpenLDAP   : Serveur d'authentification centralisée
+# 📦 SERVICES :
+# - Redpanda       : Broker Kafka-compatible pour messages en temps réel
+# - MinIO          : Serveur S3 local pour le stockage d'objets (fichiers Parquet, etc.)
+# - PostgreSQL     : Base de données relationnelle pour Metabase
+# - ClickHouse     : Base de données analytique pour traitement de gros volumes de données
+# - ClickHouse UI  : Interface web pour administrer ClickHouse
+# - Metabase       : Outil no-code de visualisation et d'analyse des données
+# - Ticket Producer: Génère des messages Kafka simulant des tickets
+# - Ticket Consumer: Consomme et affiche en direct les messages Kafka
+# - Spark Tickets  : Traitement de messages Kafka via PySpark et export vers Parquet/MinIO
 #
-# ⚙️ PIPELINE DE DONNÉES :
-# - ticket-producer : Générateur de données simulées (tickets clients), les envoie vers Redpanda
-# - spark-tickets   : Traitement des tickets en temps réel avec PySpark, stockage des résultats dans MinIO
-#
-# Toutes les variables sensibles (identifiants, mots de passe) sont
-# externalisées dans le fichier `.env` à la racine du projet.
+# 🌐 RÉSEAU : Tous les services se connectent au réseau commun `hybrid_net`.
 # ===============================================================
-
 
 services:
 
-  # 🟥 REDPANDA — Broker de messages Kafka-compatible
+  # 🟥 REDPANDA — Broker Kafka-compatible (léger, local)
   redpanda:
-    image: redpandadata/redpanda:latest
-    container_name: redpanda
-
-    # 🚀 Lancement optimisé pour les environnements locaux
-    command:
+    image: redpandadata/redpanda:latest  # Utilisation de la dernière image officielle
+    container_name: redpanda             # Nom du conteneur
+    command:                           # Commandes pour configurer et démarrer Redpanda
       - redpanda
       - start
-      - --overprovisioned          # désactive certaines contraintes matérielles
+      - --overprovisioned           # Alloue les ressources sans vérifier les limitations de l'hôte
       - --smp
-      - "1"                        # limite à 1 cœur CPU
+      - "1"                         # Limite l'utilisation à un seul CPU
       - --memory
-      - 1G
+      - 1G                          # Définit 1 Go de mémoire disponible
       - --reserve-memory
-      - 0M
-      - --check=false              # désactive les vérifications système
-
+      - 0M                          # Aucune mémoire réservée pour d'autres processus
+      - --check=false               # Désactive certains contrôles pour accélérer le démarrage
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092           # Écoute sur toutes les interfaces au port 9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092 # Adresse annoncée pour les clients Docker
     ports:
-      - "9092:9092"                # Port Kafka pour les clients producteurs/consommateurs
-      - "9644:9644"                # Port HTTP pour l'administration (API REST, métriques)
-
+      - "9092:9092"    # Communication Kafka
+      - "9644:9644"    # API REST d'administration
     volumes:
-      - ./data/redpanda:/var/lib/redpanda  # Persistance locale des données Redpanda
-
+      - ./data/redpanda:/var/lib/redpanda  # Persistance des données locales
     networks:
-      - hybrid_net                 # Rattachement au réseau Docker local partagé
+      - hybrid_net   # Connexion au réseau commun
 
-  # 🟫 MINIO — Serveur S3 local pour stockage d’objets
+  # 🟫 MINIO — Serveur de stockage S3 local
   minio:
-    image: minio/minio:latest
-    container_name: minio
-
-    env_file: .env                 # 🔐 Charge les identifiants d’accès depuis le fichier .env
-
-    # 📦 Lancement du serveur avec les ports API et console
-    command: server /data --address ":9000" --console-address ":9001"
-
+    image: minio/minio:latest           # Dernière image officielle de MinIO
+    container_name: minio               # Nom du conteneur
+    env_file: .env                      # Chargement des variables d'environnement (accès, clés, etc.)
+    command: server /data --address ":9000" --console-address ":9001"  # Démarrage avec API S3 et interface web
     ports:
-      - "9000:9000"                # API S3 (compatible avec AWS S3)
-      - "9001:9001"                # Console web MinIO (interface utilisateur)
-
+      - "9000:9000"    # Port pour l'API S3
+      - "9001:9001"    # Port pour l'interface d'administration web
     volumes:
-      - ./data/minio:/data        # Dossier local pour stocker les objets
-
+      - ./data/minio:/data   # Persistance des fichiers stockés
     networks:
-      - hybrid_net
+      - hybrid_net         # Connexion au réseau commun
 
-  # 🟨 CLICKHOUSE — Base analytique haute performance en colonnes
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    container_name: clickhouse
-
-    env_file: .env                # 🔐 Paramètres utilisateurs/MDP dans .env
-
-    environment:
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-
-    ports:
-      - "8123:8123"               # Port HTTP pour requêtes REST/Browser
-      - "9009:9000"               # Port TCP natif (clients Python, DBeaver…)
-
-    volumes:
-      - ./data/clickhouse:/var/lib/clickhouse  # Dossier de persistance des données
-
-    networks:
-      - hybrid_net
-
-  # 🔵 OPENLDAP — Serveur d’annuaire LDAP pour authentification centralisée
-  ldap:
-    image: osixia/openldap:1.5.0
-    container_name: openldap
-
-    env_file: .env                # Variables : domaine, organisation, mot de passe admin
-
-    ports:
-      - "389:389"                 # Port LDAP non sécurisé
-      - "636:636"                 # Port sécurisé LDAPS
-
-    networks:
-      - hybrid_net
-
-  # 🟢 POSTGRESQL — Base de données relationnelle classique
+  # 🗄️ POSTGRESQL — Base de données relationnelle pour Metabase
   postgres:
-    image: postgres:13
-    container_name: postgres
-
-    env_file: .env                # Utilisation des variables POSTGRES_* dans .env
-
+    image: postgres:13                 # Image PostgreSQL version 13
+    container_name: postgres           # Nom du conteneur
+    env_file: .env                     # Variables d'environnement (utilisateur, mot de passe, DB)
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}         # Nom de l'utilisateur
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # Mot de passe utilisateur
-      POSTGRES_DB: ${POSTGRES_DB}             # Nom de la base initiale
-
+      POSTGRES_USER: ${POSTGRES_USER}         # Définition de l'utilisateur
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # Mot de passe depuis .env
+      POSTGRES_DB: ${POSTGRES_DB}             # Nom de la base de données initiale
     ports:
-      - "5432:5432"               # Port PostgreSQL par défaut
-
+      - "5432:5432"   # Port standard de PostgreSQL
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data  # Persistance locale des données
-
+      - ./data/postgres:/var/lib/postgresql/data  # Persistance des données
     networks:
-      - hybrid_net
+      - hybrid_net   # Connexion au réseau commun
 
-  # 🔁 PRODUCTEUR DE TICKETS — Génère les messages vers Redpanda
+  # 🟩 CLICKHOUSE — Base de données analytique haute performance
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest  # Image officielle de ClickHouse
+    container_name: clickhouse                  # Nom du conteneur
+    env_file: .env                      # Chargement des variables d'environnement (accès, clés, etc.)
+    ports:
+      - "8123:8123"    # Interface HTTP pour requêtes SQL
+      - "9009:9000"    # Protocole natif TCP pour ClickHouse
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse     # Volume Docker pour la persistance des données
+    environment:
+      CLICKHOUSE_DB: tickets_db                   # Base de données par défaut
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}         # Utilisateur par défaut
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD} # Mot de passe (vide ici, à sécuriser en prod)
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144   # Limite de fichiers ouverts pour gérer de nombreuses connexions
+    networks:
+      - hybrid_net         # Connexion au réseau commun
+  # 🟦 CLICKHOUSE WEBUI — Interface web pour administrer ClickHouse
+  clickhouse-webui:
+    image: spoonest/clickhouse-tabix-web-client  # Image pour une interface web simplifiée
+    container_name: clickhouse-ui                 # Nom du conteneur
+    ports:
+      - "8081:80"      # Mappe le port 80 du conteneur sur le port 8081 de l'hôte
+    depends_on:
+      - clickhouse     # Démarre après ClickHouse pour garantir la disponibilité
+
+  # 📊 METABASE — Outil no-code de visualisation et d'analyse des données
+  metabase:
+    image: metabase/metabase:latest  # Image officielle de Metabase
+    container_name: metabase         # Nom du conteneur
+    ports:
+      - "3000:3000"     # Accès à l'interface web sur le port 3000
+    networks:
+      - hybrid_net   # Se connecte au réseau commun pour accéder à PostgreSQL
+    depends_on:
+      - postgres     # Démarre après PostgreSQL pour assurer l'accès aux données
+
+  # 🎲 TICKET PRODUCER — Générateur de messages Kafka simulant des tickets
   ticket-producer:
     build:
-      context: .                          # Répertoire de build local
-      dockerfile: Dockerfile.producer     # Dockerfile spécifique au producteur
+      context: .          # Répertoire courant (contenant le Dockerfile)
+      dockerfile: docker/Dockerfile.producer  # Dockerfile spécifique pour le producer
+    container_name: ticket-producer  # Nom du conteneur
+    env_file: .env   # Variables d'environnement (configuration Kafka, etc.)
     depends_on:
-      - redpanda                          # Démarre après Redpanda
+      - redpanda   # Attend que Redpanda soit opérationnel avant de démarrer
     networks:
-      - hybrid_net
-      
-  # 📥 CONSUMER DE TICKETS — Pour debug ou monitoring en live
+      - hybrid_net   # Connexion au réseau commun
+
+  # 👁️ TICKET CONSUMER — Consommateur de messages Kafka (affichage ou traitement en direct)
   ticket-consumer:
     build:
-      context: .                          # Répertoire de build local
-      dockerfile: Dockerfile.consumer     # Dockerfile pour le consumer Kafka
+      context: .                      # Répertoire courant
+      dockerfile: docker/Dockerfile.consumer  # Dockerfile spécifique pour le consumer
+    container_name: ticket-consumer  # Nom du conteneur
+    env_file: .env   # Chargement des variables d'environnement
     depends_on:
-      - redpanda                          # Démarre après Redpanda
+      - redpanda  # Attend que le broker Redpanda soit démarré
     networks:
-      - hybrid_net
+      - hybrid_net  # Communication via le réseau commun
+    command: tail -f /dev/null  # Maintient le conteneur actif sans lancer de processus long
 
-  # ⚙️ TRAITEMENT SPARK — Pipeline de traitement des tickets
+  # ⚙️ SPARK TICKETS — Traitement de messages Kafka via PySpark
   spark-tickets:
     build:
-      context: .                          # Répertoire racine du projet
-      dockerfile: Dockerfile.pyspark      # Dockerfile spécifique pour PySpark
+      context: .          # Répertoire courant pour le contexte de build
+      dockerfile: docker/Dockerfile.pyspark  # Dockerfile dédié au traitement PySpark
+    container_name: spark-tickets  # Nom du conteneur
+    env_file: .env   # Variables d'environnement nécessaires (accès à Kafka, MinIO, etc.)
     depends_on:
-      - redpanda                          # Dépend de Redpanda (source des messages)
-      - minio                             # Et de MinIO (stockage des résultats)
-    networks:
-      - hybrid_net    
+      - redpanda   # Garantit que Redpanda est opérationnel
+      - minio      # S'assure que MinIO est disponible pour l'export des fichiers
     volumes:
-      - ./outputs:/app/outputs   # 🔁 Ajout ici pour exporter localement
+      - ./data/outputs:/app/data/outputs # Monte le répertoire local pour sauvegarder les fichiers exportés (ex: Parquet)
+    networks:
+      - hybrid_net   # Communication inter-conteneurs via le réseau commun
+    command: tail -f /dev/null  # Maintient le conteneur actif
 
-
-# 🌐 RÉSEAU PARTAGÉ ENTRE LES SERVICES
+# ===============================================================
+# 🌐 RÉSEAU COMMUN ET VOLUMES
+# ===============================================================
 networks:
   hybrid_net:
-    driver: bridge                # Réseau Docker interne pour communication privée
+    driver: bridge   # Utilise le driver 'bridge' pour l'isolation et la communication entre conteneurs
+
+volumes:
+  clickhouse_data: {}  # Volume persistant pour ClickHouse

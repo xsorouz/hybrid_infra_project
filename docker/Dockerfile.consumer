@@ -1,0 +1,20 @@
+# ========================================
+# 🐳 DOCKERFILE — Consumer Kafka Redpanda
+# Utilisé pour écouter un topic Kafka (Redpanda) et afficher les messages.
+# ========================================
+
+# 📦 Image de base légère avec Python 3.11
+FROM python:3.11-slim
+
+# 📂 Répertoire de travail dans le conteneur
+WORKDIR /app
+
+# 📥 Copie du fichier de dépendances et installation
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 📥 Copie du script principal consumer
+COPY src/consumer_tickets.py ./src/consumer_tickets.py
+
+# 💤 Conteneur en pause au démarrage (exécution manuelle via docker exec)
+CMD ["tail", "-f", "/dev/null"]

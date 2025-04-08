@@ -1,0 +1,24 @@
+# ===============================
+# 🐍 DOCKERFILE - ticket-producer
+# ===============================
+
+# Utilise une image Python légère basée sur Debian
+FROM python:3.11-slim
+
+# Définit le répertoire de travail
+WORKDIR /app
+
+# Copie les dépendances
+COPY requirements.txt .
+
+# Installe les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copie le script producteur
+COPY src/producer_tickets.py ./src/producer_tickets.py
+
+# Copie le fichier .env dans le conteneur
+COPY .env .
+
+# Définit la commande par défaut (peut être surchargée)
+CMD ["python", "src/producer_tickets.py"]

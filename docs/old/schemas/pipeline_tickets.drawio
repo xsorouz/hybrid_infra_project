@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Pipeline Tickets" id="Ueu5bV5vRYsj1b8VpRfK">
+    <mxGraphModel dx="1093" dy="678" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Producer -->
+        <mxCell id="producer" value="Producer Python" style="shape=process;fillColor=#D5E8D4;" vertex="1" parent="1">
+          <mxGeometry x="60" y="100" width="120" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Redpanda -->
+        <mxCell id="redpanda" value="Kafka (Redpanda)" style="shape=cylinder;fillColor=#FFF2CC;" vertex="1" parent="1">
+          <mxGeometry x="220" y="100" width="120" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- PySpark -->
+        <mxCell id="spark" value="PySpark Streaming" style="shape=process;fillColor=#DAE8FC;" vertex="1" parent="1">
+          <mxGeometry x="380" y="100" width="140" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Export Parquet -->
+        <mxCell id="parquet" value="Export Parquet / JSON" style="shape=document;fillColor=#F8CECC;" vertex="1" parent="1">
+          <mxGeometry x="560" y="100" width="160" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- MinIO -->
+        <mxCell id="minio" value="MinIO (S3)" style="shape=cylinder;fillColor=#E1D5E7;" vertex="1" parent="1">
+          <mxGeometry x="760" y="40" width="100" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- DuckDB -->
+        <mxCell id="duckdb" value="DuckDB / Pandas" style="shape=hexagon;fillColor=#F5F5F5;" vertex="1" parent="1">
+          <mxGeometry x="760" y="120" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- PostgreSQL -->
+        <mxCell id="postgres" value="PostgreSQL" style="shape=cylinder;fillColor=#D5E8D4;" vertex="1" parent="1">
+          <mxGeometry x="760" y="200" width="100" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Metabase -->
+        <mxCell id="metabase" value="Metabase" style="shape=ellipse;fillColor=#E1D5E7;" vertex="1" parent="1">
+          <mxGeometry x="910" y="200" width="100" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows -->
+        <mxCell id="arrow1" style="endArrow=block" edge="1" parent="1" source="producer" target="redpanda"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="arrow2" style="endArrow=block" edge="1" parent="1" source="redpanda" target="spark"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="arrow3" style="endArrow=block" edge="1" parent="1" source="spark" target="parquet"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="arrow4" style="endArrow=block" edge="1" parent="1" source="parquet" target="minio"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="arrow5" style="endArrow=block" edge="1" parent="1" source="parquet" target="duckdb"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="arrow6" style="endArrow=block" edge="1" parent="1" source="parquet" target="postgres"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="arrow7" style="endArrow=block" edge="1" parent="1" source="postgres" target="metabase"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

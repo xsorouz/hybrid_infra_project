@@ -1,0 +1,31 @@
+# ========================================
+# 🐳 DOCKERFILE — Spark (Streaming + Analyse)
+# ========================================
+
+# 1. Image Spark officielle Bitnami
+FROM bitnami/spark:latest
+
+# 2. Variables d'environnement pour Spark
+ENV SPARK_HOME=/opt/bitnami/spark
+
+# 3. Ajout du package Kafka pour Structured Streaming
+RUN $SPARK_HOME/bin/spark-shell \
+    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 \
+    --conf spark.ui.enabled=false \
+    -i /dev/null || true
+
+# 4. Répertoire de travail dans le conteneur
+WORKDIR /app
+
+# 5. Copie des scripts utiles pour Spark
+COPY ./src/pyspark_streaming_export_minio.py .
+COPY ./src/analyse_tickets_exportes.py .
+COPY ./src/export_to_postgres.py .
+COPY ./src/export_to_clickhouse.py .
+
+# 6. Installation des dépendances Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 7. Mode attente (le script sera lancé via docker exec ou bat)
+CMD ["tail", "-f", "/dev/null"]

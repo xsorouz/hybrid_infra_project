@@ -47,12 +47,13 @@ docker-compose -f docker-compose.infra.yml down -v
 
 ```mermaid
 graph TD
+graph TD
   A[Producer Python] --> B[Kafka Redpanda]
   B --> C[PySpark Streaming]
   C --> D1[Parquet & JSON]
   D1 --> E[MinIO - S3]
-  D1 --> F[DuckDB & Pandas]
-  D1 --> G[PostgreSQL & Clikhouse Export]
+  D1 --> F[DuckDB & Pandas] --> I[Rapport CSV / Graphique]
+  D1 --> G[PostgreSQL & Clickhouse Export]
   G --> H[Metabase Dashboards]
 ```
 

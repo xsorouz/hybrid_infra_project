@@ -47,7 +47,6 @@ docker-compose -f docker-compose.infra.yml down -v
 
 ```mermaid
 graph TD
-graph TD
   A[Producer Python] --> B[Kafka Redpanda]
   B --> C[PySpark Streaming]
   C --> D1[Parquet & JSON]

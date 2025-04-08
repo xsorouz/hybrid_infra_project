@@ -21,6 +21,7 @@ outputs/
 data/
 logs/
 *.log
+docs/
 
 # 📦 Fichiers d’archives
 *.zip
